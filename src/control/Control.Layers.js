@@ -74,7 +74,11 @@ export var Layers = Control.extend({
 		// By default, it sorts layers alphabetically by their name.
 		sortFunction: function (layerA, layerB, nameA, nameB) {
 			return nameA < nameB ? -1 : (nameB < nameA ? 1 : 0);
-		}
+		},
+
+		// @option opacitySlider: Boolean = false
+		// if true an input-range 'slider' will be included inside control-collection box 
+		opacitySlider: false
 	},
 
 	initialize: function (baseLayers, overlays, options) {
@@ -209,6 +213,23 @@ export var Layers = Control.extend({
 		this._baseLayersList = DomUtil.create('div', className + '-base', form);
 		this._separator = DomUtil.create('div', className + '-separator', form);
 		this._overlaysList = DomUtil.create('div', className + '-overlays', form);
+
+		// @Ivan: your implementation in my copy of leaflet (Leaflet 1.0.3+ed36a04) is considerably different so I've included a link to that implementation:
+		// https://github.com/HISPSA/focus-for-impact/blob/master/js/leaflet.js
+
+		if (this.options.opacitySlider) {
+			this._separator = DomUtil.create("div", t + "-separator", form), this._slider = DomUtil.create("div", t + "-sliderRow", form);
+			var l = this._layers;
+			var newSl = document.createElement('input'); //@Ivan: i'm sure there is a better way of creating this control, please amend if necessary
+			newSl.type='range',newSl.min=0,newSl.max=1,newSl.step=0.05,newSl.value=1,newSl.className='leaflet-control-layers-sliderControl';
+			newSl.addEventListener('change', function(){
+				for (var e = 0; e < l.length; e++) {
+					l[e].layer.options.opacity = this.value;
+					l[e].layer.setOpacity(this.value);
+				}
+			});
+			this._slider.appendChild(newSl);
+		}
 
 		container.appendChild(form);
 	},
@@ -352,15 +373,18 @@ export var Layers = Control.extend({
 		this._handlingClick = true;
 
 		for (var i = inputs.length - 1; i >= 0; i--) {
-			input = inputs[i];
-			layer = this._getLayer(input.layerId).layer;
-			hasLayer = this._map.hasLayer(layer);
+			//Only apply to baseLayer input controls (exclude opacitySlider)
+			if (inputs[i].className == 'leaflet-control-layers-selector'){
+				input = inputs[i];
+				layer = this._getLayer(input.layerId).layer;
+				hasLayer = this._map.hasLayer(layer);
 
-			if (input.checked && !hasLayer) {
-				addedLayers.push(layer);
+				if (input.checked && !hasLayer) {
+					addedLayers.push(layer);
 
-			} else if (!input.checked && hasLayer) {
-				removedLayers.push(layer);
+				} else if (!input.checked && hasLayer) {
+					removedLayers.push(layer);
+				}
 			}
 		}
 
@@ -384,11 +408,14 @@ export var Layers = Control.extend({
 		    zoom = this._map.getZoom();
 
 		for (var i = inputs.length - 1; i >= 0; i--) {
-			input = inputs[i];
-			layer = this._getLayer(input.layerId).layer;
-			input.disabled = (layer.options.minZoom !== undefined && zoom < layer.options.minZoom) ||
-			                 (layer.options.maxZoom !== undefined && zoom > layer.options.maxZoom);
+			//Only apply to baseLayer input controls (exclude opacitySlider)
+			if (inputs[i].className == 'leaflet-control-layers-selector'){
+				input = inputs[i];
+				layer = this._getLayer(input.layerId).layer;
+				input.disabled = (layer.options.minZoom !== undefined && zoom < layer.options.minZoom) ||
+								 (layer.options.maxZoom !== undefined && zoom > layer.options.maxZoom);
 
+			}
 		}
 	},
 
